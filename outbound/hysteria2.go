@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	_ adapter.Outbound                = (*TUIC)(nil)
-	_ adapter.InterfaceUpdateListener = (*TUIC)(nil)
+	_ adapter.Outbound                = (*Hysteria2)(nil)
+	_ adapter.InterfaceUpdateListener = (*Hysteria2)(nil)
 )
 
 type Hysteria2 struct {
@@ -116,8 +116,8 @@ func (h *Hysteria2) NewPacketConnection(ctx context.Context, conn N.PacketConn, 
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
-func (h *Hysteria2) InterfaceUpdated() error {
-	return h.client.CloseWithError(E.New("network changed"))
+func (h *Hysteria2) InterfaceUpdated() {
+	h.client.CloseWithError(E.New("network changed"))
 }
 
 func (h *Hysteria2) Close() error {
