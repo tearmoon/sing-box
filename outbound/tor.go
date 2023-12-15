@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -24,7 +25,10 @@ import (
 	"github.com/cretz/bine/tor"
 )
 
-var _ adapter.Outbound = (*Tor)(nil)
+var (
+	_ adapter.Outbound      = (*Tor)(nil)
+	_ adapter.OutboundRelay = (*Tor)(nil)
+)
 
 type Tor struct {
 	myOutboundAdapter
@@ -214,4 +218,22 @@ func (t *Tor) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 
 func (t *Tor) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return os.ErrInvalid
+}
+
+func (t *Tor) SetRelay(detour N.Dialer) adapter.Outbound {
+	c := *t.socksClient
+	client := c
+	r := reflect.ValueOf(client)
+	r.FieldByName("dialer").Set(reflect.ValueOf(detour))
+	outbound := Tor{
+		myOutboundAdapter: t.myOutboundAdapter,
+		ctx:               t.ctx,
+		proxy:             t.proxy,
+		startConf:         t.startConf,
+		options:           t.options,
+		events:            t.events,
+		instance:          t.instance,
+		socksClient:       &client,
+	}
+	return &outbound
 }

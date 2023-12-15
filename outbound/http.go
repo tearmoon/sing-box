@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -17,7 +18,10 @@ import (
 	sHTTP "github.com/sagernet/sing/protocol/http"
 )
 
-var _ adapter.Outbound = (*HTTP)(nil)
+var (
+	_ adapter.Outbound      = (*HTTP)(nil)
+	_ adapter.OutboundRelay = (*HTTP)(nil)
+)
 
 type HTTP struct {
 	myOutboundAdapter
@@ -72,4 +76,16 @@ func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapte
 
 func (h *HTTP) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return os.ErrInvalid
+}
+
+func (h *HTTP) SetRelay(detour N.Dialer) adapter.Outbound {
+	c := *h.client
+	client := c
+	r := reflect.ValueOf(client)
+	r.FieldByName("dialer").Set(reflect.ValueOf(detour))
+	outbound := HTTP{
+		myOutboundAdapter: h.myOutboundAdapter,
+		client:            &client,
+	}
+	return &outbound
 }

@@ -23,6 +23,12 @@ func NewDetour(router adapter.Router, detour string) N.Dialer {
 	return &DetourDialer{router: router, detour: detour}
 }
 
+func NewDetourWithDialer(router adapter.Router, detour adapter.Outbound) N.Dialer {
+	d := DetourDialer{router: router, detour: detour.Tag()}
+	d.initOnce.Do(func() { d.dialer = detour })
+	return &d
+}
+
 func (d *DetourDialer) Start() error {
 	_, err := d.Dialer()
 	return err

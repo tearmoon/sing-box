@@ -20,7 +20,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Outbound = (*Trojan)(nil)
+var (
+	_ adapter.Outbound      = (*Trojan)(nil)
+	_ adapter.OutboundRelay = (*Trojan)(nil)
+)
 
 type Trojan struct {
 	myOutboundAdapter
@@ -155,4 +158,11 @@ func (h *trojanDialer) ListenPacket(ctx context.Context, destination M.Socksaddr
 		return nil, err
 	}
 	return conn.(net.PacketConn), nil
+}
+
+func (h *Trojan) SetRelay(detour N.Dialer) adapter.Outbound {
+	trojan := *h
+	outbound := trojan
+	outbound.dialer = detour
+	return &outbound
 }

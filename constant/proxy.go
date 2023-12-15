@@ -28,6 +28,7 @@ const (
 const (
 	TypeSelector = "selector"
 	TypeURLTest  = "urltest"
+	TypeRelay    = "relay"
 )
 
 func ProxyDisplayName(proxyType string) string {
@@ -72,6 +73,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Selector"
 	case TypeURLTest:
 		return "URLTest"
+	case TypeRelay:
+		return "Relay"
 	default:
 		return "Unknown"
 	}

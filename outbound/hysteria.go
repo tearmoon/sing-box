@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -24,6 +25,7 @@ import (
 
 var (
 	_ adapter.Outbound                = (*Hysteria)(nil)
+	_ adapter.OutboundRelay           = (*Hysteria)(nil)
 	_ adapter.InterfaceUpdateListener = (*Hysteria)(nil)
 )
 
@@ -137,4 +139,16 @@ func (h *Hysteria) InterfaceUpdated() {
 
 func (h *Hysteria) Close() error {
 	return h.client.CloseWithError(os.ErrClosed)
+}
+
+func (h *Hysteria) SetRelay(detour N.Dialer) adapter.Outbound {
+	c := *h.client
+	client := c
+	r := reflect.ValueOf(client)
+	r.FieldByName("dialer").Set(reflect.ValueOf(detour))
+	outbound := Hysteria{
+		myOutboundAdapter: h.myOutboundAdapter,
+		client:            &client,
+	}
+	return &outbound
 }

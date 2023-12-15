@@ -26,6 +26,7 @@ import (
 
 var (
 	_ adapter.Outbound                = (*SSH)(nil)
+	_ adapter.OutboundRelay           = (*SSH)(nil)
 	_ adapter.InterfaceUpdateListener = (*SSH)(nil)
 )
 
@@ -207,4 +208,11 @@ func (s *SSH) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 
 func (s *SSH) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return os.ErrInvalid
+}
+
+func (s *SSH) SetRelay(detour N.Dialer) adapter.Outbound {
+	ssh := *s
+	outbound := ssh
+	outbound.dialer = detour
+	return &outbound
 }

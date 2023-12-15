@@ -21,7 +21,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Outbound = (*VLESS)(nil)
+var (
+	_ adapter.Outbound      = (*VLESS)(nil)
+	_ adapter.OutboundRelay = (*VLESS)(nil)
+)
 
 type VLESS struct {
 	myOutboundAdapter
@@ -215,4 +218,11 @@ func (h *vlessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	} else {
 		return h.client.DialEarlyPacketConn(conn, destination)
 	}
+}
+
+func (h *VLESS) SetRelay(detour N.Dialer) adapter.Outbound {
+	vless := *h
+	outbound := vless
+	outbound.dialer = detour
+	return &outbound
 }

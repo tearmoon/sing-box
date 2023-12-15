@@ -25,3 +25,8 @@ type URLTestOutboundOptions struct {
 	IdleTimeout               Duration `json:"idle_timeout,omitempty"`
 	InterruptExistConnections bool     `json:"interrupt_exist_connections,omitempty"`
 }
+
+type RelayOutboundOptions struct {
+	Outbounds                 []string `json:"outbounds"`
+	InterruptExistConnections bool     `json:"interrupt_exist_connections,omitempty"`
+}

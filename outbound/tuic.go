@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -27,6 +28,7 @@ import (
 
 var (
 	_ adapter.Outbound                = (*TUIC)(nil)
+	_ adapter.OutboundRelay           = (*TUIC)(nil)
 	_ adapter.InterfaceUpdateListener = (*TUIC)(nil)
 )
 
@@ -150,4 +152,17 @@ func (h *TUIC) InterfaceUpdated() {
 
 func (h *TUIC) Close() error {
 	return h.client.CloseWithError(os.ErrClosed)
+}
+
+func (h *TUIC) SetRelay(detour N.Dialer) adapter.Outbound {
+	c := *h.client
+	client := c
+	r := reflect.ValueOf(client)
+	r.FieldByName("dialer").Set(reflect.ValueOf(detour))
+	outbound := TUIC{
+		myOutboundAdapter: h.myOutboundAdapter,
+		client:            &client,
+		udpStream:         h.udpStream,
+	}
+	return &outbound
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -17,7 +18,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Outbound = (*ShadowTLS)(nil)
+var (
+	_ adapter.Outbound      = (*ShadowTLS)(nil)
+	_ adapter.OutboundRelay = (*ShadowTLS)(nil)
+)
 
 type ShadowTLS struct {
 	myOutboundAdapter
@@ -114,4 +118,16 @@ func (h *ShadowTLS) NewConnection(ctx context.Context, conn net.Conn, metadata a
 
 func (h *ShadowTLS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return os.ErrInvalid
+}
+
+func (h *ShadowTLS) SetRelay(detour N.Dialer) adapter.Outbound {
+	c := *h.client
+	client := c
+	r := reflect.ValueOf(client)
+	r.FieldByName("dialer").Set(reflect.ValueOf(detour))
+	outbound := ShadowTLS{
+		myOutboundAdapter: h.myOutboundAdapter,
+		client:            &client,
+	}
+	return &outbound
 }

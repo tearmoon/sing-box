@@ -24,3 +24,7 @@ type Outbound interface {
 type OutboundUseIP interface {
 	UseIP() bool
 }
+
+type OutboundRelay interface {
+	SetRelay(detour N.Dialer) Outbound
+}

@@ -25,7 +25,10 @@ import (
 	"github.com/Dreamacro/clash/transport/socks5"
 )
 
-var _ adapter.Outbound = (*ShadowsocksR)(nil)
+var (
+	_ adapter.Outbound      = (*ShadowsocksR)(nil)
+	_ adapter.OutboundRelay = (*ShadowsocksR)(nil)
+)
 
 type ShadowsocksR struct {
 	myOutboundAdapter
@@ -192,4 +195,11 @@ func (spc *ssPacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
 
 	copy(b, b[len(addr):])
 	return n - len(addr), udpAddr, e
+}
+
+func (h *ShadowsocksR) SetRelay(detour N.Dialer) adapter.Outbound {
+	ssr := *h
+	outbound := ssr
+	outbound.dialer = detour
+	return &outbound
 }

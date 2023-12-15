@@ -124,6 +124,11 @@ type SelectorGroup interface {
 	UpdateSelected(tag string) bool
 }
 
+type RelayGroup interface {
+	OutboundGroup
+	IsRelay() bool
+}
+
 func OutboundTag(detour Outbound) string {
 	if group, isGroup := detour.(OutboundGroup); isGroup {
 		return group.Now()
