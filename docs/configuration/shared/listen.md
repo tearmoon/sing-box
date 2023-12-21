@@ -14,6 +14,7 @@
   "sniff_override_rules": [],
   "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
+  "always_resolve_udp": false,
   "udp_disable_domain_unmapping": false
 }
 ```
@@ -100,6 +101,12 @@ One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
+
+#### always_resolve_udp
+
+If set, the requested domain name will be resolved to IP before routing when the inbound stream is udp.
+
+If `domain_strategy` is not in effect, domain will be resolved with `dns.rules`.
 
 #### udp_disable_domain_unmapping
 
