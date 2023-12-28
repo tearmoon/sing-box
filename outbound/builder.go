@@ -47,8 +47,6 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		return NewSSH(ctx, router, logger, tag, options.SSHOptions)
 	case C.TypeShadowTLS:
 		return NewShadowTLS(ctx, router, logger, tag, options.ShadowTLSOptions)
-	case C.TypeShadowsocksR:
-		return NewShadowsocksR(ctx, router, logger, tag, options.ShadowsocksROptions)
 	case C.TypeVLESS:
 		return NewVLESS(ctx, router, logger, tag, options.VLESSOptions)
 	case C.TypeTUIC:
