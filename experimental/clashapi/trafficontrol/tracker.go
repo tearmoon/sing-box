@@ -140,7 +140,9 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router ad
 	if rule != nil {
 		t.trackerInfo.Rule = rule.String() + " => " + rule.Outbound()
 	} else {
-		t.trackerInfo.Rule = "final"
+		finalOut, _ := router.DefaultOutbound(t.Metadata.NetWork)
+		finalTag := finalOut.Tag()
+		t.trackerInfo.Rule = "final => " + finalTag
 	}
 
 	manager.Join(t)
