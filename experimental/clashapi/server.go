@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strings"
@@ -247,6 +248,12 @@ func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 	} else {
 		inbound = metadata.InboundType
 	}
+	var addr netip.Addr
+	if len(metadata.DestinationAddresses) > 0 {
+		addr = metadata.DestinationAddresses[0]
+	} else {
+		addr = metadata.Destination.Addr
+	}
 	var domain string
 	if metadata.Destination.IsFqdn() {
 		domain = metadata.Destination.Fqdn
@@ -274,7 +281,7 @@ func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 		NetWork:     metadata.Network,
 		Type:        inbound,
 		SrcIP:       metadata.Source.Addr,
-		DstIP:       metadata.Destination.Addr,
+		DstIP:       addr,
 		SrcPort:     F.ToString(metadata.Source.Port),
 		DstPort:     F.ToString(metadata.Destination.Port),
 		Host:        domain,
