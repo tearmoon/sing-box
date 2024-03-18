@@ -28,6 +28,7 @@ type Router interface {
 
 	OutboundProviders() []OutboundProvider
 	OutboundProvider(tag string) (OutboundProvider, bool)
+	Transport(tag string) (dns.Transport, bool)
 
 	FakeIPStore() FakeIPStore
 
@@ -94,6 +95,7 @@ type DNSRule interface {
 	ClientSubnet() *netip.Addr
 	WithAddressLimit() bool
 	MatchAddressLimit(metadata *InboundContext) bool
+	Servers() []string
 }
 
 type RuleSet interface {

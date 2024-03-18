@@ -55,7 +55,7 @@ jobs:
             tar -czvf "bin/sing-box-${VERSION}-android-arm64.tar.gz" "bin/sing-box-${VERSION}-android-arm64"
             rm -rf "bin/sing-box-${VERSION}-android-arm64"
 
-            CGO_ENABLED=1 CC=${CC}/aarch64-linux-android33-clang GOARCH=arm64 GOOS=android go build -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION} ${BUILDDATE}' -s -w -buildid=" -tags 'with_quic,with_clash_api' -o bin/sing-box-litetags-${VERSION}-android-arm64 ./cmd/sing-box
+            CGO_ENABLED=1 CC=${CC}/aarch64-linux-android33-clang GOARCH=arm64 GOOS=android go build -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION} ${BUILDDATE}' -s -w -buildid=" -tags 'with_clash_api' -o bin/sing-box-litetags-${VERSION}-android-arm64 ./cmd/sing-box
             tar -czvf "bin/sing-box-litetags-${VERSION}-android-arm64.tar.gz" "bin/sing-box-litetags-${VERSION}-android-arm64"
             rm -rf "bin/sing-box-litetags-${VERSION}-android-arm64"
           elif [[ "${{ matrix.job.type}}" == "armv7" ]]; then
@@ -63,7 +63,7 @@ jobs:
             tar -czvf "bin/sing-box-${VERSION}-android-armv7.tar.gz" "bin/sing-box-${VERSION}-android-armv7"
             rm -rf "bin/sing-box-${VERSION}-android-armv7"
 
-            CGO_ENABLED=1 CC=${CC}/armv7a-linux-androideabi33-clang GOARCH=arm GOARM=7 GOOS=android go build -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION} ${BUILDDATE}' -s -w -buildid=" -tags 'with_quic,with_clash_api' -o bin/sing-box-litetags-${VERSION}-android-armv7 ./cmd/sing-box
+            CGO_ENABLED=1 CC=${CC}/armv7a-linux-androideabi33-clang GOARCH=arm GOARM=7 GOOS=android go build -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION} ${BUILDDATE}' -s -w -buildid=" -tags 'with_clash_api' -o bin/sing-box-litetags-${VERSION}-android-armv7 ./cmd/sing-box
             tar -czvf "bin/sing-box-litetags-${VERSION}-android-armv7.tar.gz" "bin/sing-box-litetags-${VERSION}-android-armv7"
             rm -rf "bin/sing-box-litetags-${VERSION}-android-armv7"
           fi
