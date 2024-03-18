@@ -122,13 +122,12 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 		ruleIndex = -1
 		for {
 			var (
-				dnsCtx       context.Context
-				cancel       context.CancelFunc
+				rawDNSCtx    context.Context
 				addressLimit bool
 			)
 
-			dnsCtx, transport, strategy, rule, ruleIndex, isFakeIP = r.matchDNS(ctx, true, ruleIndex)
-			dnsCtx, cancel = context.WithTimeout(dnsCtx, C.DNSTimeout)
+			rawDNSCtx, transport, strategy, rule, ruleIndex, isFakeIP = r.matchDNS(ctx, true, ruleIndex)
+			dnsCtx, cancel := context.WithTimeout(rawDNSCtx, C.DNSTimeout)
 			if rule != nil && rule.WithAddressLimit() && isAddressQuery(message) {
 				addressLimit = true
 				response, err = r.dnsClient.ExchangeWithResponseCheck(dnsCtx, transport, message, strategy, func(response *mDNS.Msg) bool {
@@ -156,6 +155,40 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 			}
 			if addressLimit && rejected {
 				continue
+			}
+			if rule == nil || err != nil {
+				break
+			}
+			addrs, _ := dns.MessageToAddresses(response)
+			if len(addrs) == 0 {
+				break
+			}
+			fallback, server, ruleStr, _ := rule.MatchFallback(&adapter.InboundContext{DestinationAddresses: addrs, DnsFallBack: true}, -1)
+			if !fallback {
+				break
+			}
+			r.dnsLogger.DebugContext(ctx, "match fallback_rule: ", ruleStr)
+			if server == "" {
+				continue
+			}
+			transport, loaded := r.transportMap[server]
+			if !loaded {
+				r.dnsLogger.ErrorContext(ctx, "transport not found: ", server)
+				continue
+			}
+			if _, isFakeIP = transport.(adapter.FakeIPTransport); isFakeIP {
+				dnsCtx = dns.ContextWithDisableCache(rawDNSCtx, true)
+			}
+			dnsCtx, cancel = context.WithTimeout(dnsCtx, C.DNSTimeout)
+			response, err = r.dnsClient.Exchange(dnsCtx, transport, message, strategy)
+			cancel()
+			if err == nil {
+				break
+			}
+			if len(message.Question) > 0 {
+				r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", formatQuestion(message.Question[0].String())))
+			} else {
+				r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
 			}
 			break
 		}
@@ -222,10 +255,13 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 			responseAddrs, err = r.dnsClient.Lookup(dnsCtx, transport, domain, strategy)
 		}
 		cancel()
+		var rejected bool
 		if err != nil {
 			if errors.Is(err, dns.ErrResponseRejectedCached) {
+				rejected = true
 				r.dnsLogger.DebugContext(ctx, "response rejected for ", domain, " (cached)")
 			} else if errors.Is(err, dns.ErrResponseRejected) {
+				rejected = true
 				r.dnsLogger.DebugContext(ctx, "response rejected for ", domain)
 			} else {
 				r.dnsLogger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
@@ -234,12 +270,58 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 			r.dnsLogger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
 			err = dns.RCodeNameError
 		}
-		if !addressLimit || err == nil {
+		if (addressLimit && rejected) || err != nil {
+			continue
+		}
+		r.dnsLogger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
+		if rule == nil {
 			break
 		}
-	}
-	if len(responseAddrs) > 0 {
-		r.dnsLogger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
+		var (
+			fallback      bool
+			server        string
+			log           string
+			fallbackIndex int
+		)
+		fallbackIndex = -1
+		for {
+			fallback, server, log, fallbackIndex = rule.MatchFallback(&adapter.InboundContext{DestinationAddresses: responseAddrs, DnsFallBack: true}, fallbackIndex)
+			if !fallback {
+				break
+			}
+			if server == "" {
+				break
+			}
+			transport, loaded := r.transportMap[server]
+			if !loaded {
+				break
+			}
+			if _, isFakeIP := transport.(adapter.FakeIPTransport); !isFakeIP {
+				break
+			}
+		}
+		if !fallback {
+			break
+		}
+		r.dnsLogger.DebugContext(ctx, "match fallback_rule: ", log)
+		if server == "" {
+			continue
+		}
+		transport, loaded := r.transportMap[server]
+		if !loaded {
+			r.dnsLogger.ErrorContext(ctx, "transport not found: ", server)
+			continue
+		}
+		responseAddrs, err = r.dnsClient.Lookup(dnsCtx, transport, domain, strategy)
+		if err != nil {
+			continue
+		}
+		if len(responseAddrs) > 0 {
+			r.dnsLogger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
+			break
+		}
+		r.dnsLogger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
+		err = dns.RCodeNameError
 	}
 	return responseAddrs, err
 }

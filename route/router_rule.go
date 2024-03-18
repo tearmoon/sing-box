@@ -38,6 +38,14 @@ func hasDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bo
 	return false
 }
 
+func hasDNSFallbackRuleUseGeoIP(rules []option.DNSRule) bool {
+	return common.Any(rules, func(it option.DNSRule) bool {
+		return common.Any(it.FallBackRules, func(it option.FallBackRule) bool {
+			return len(it.GeoIP) > 0 && common.Any(it.GeoIP, notPrivateNode)
+		})
+	})
+}
+
 func hasHeadlessRule(rules []option.HeadlessRule, cond func(rule option.DefaultHeadlessRule) bool) bool {
 	for _, rule := range rules {
 		switch rule.Type {

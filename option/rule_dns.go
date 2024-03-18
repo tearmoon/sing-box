@@ -9,8 +9,26 @@ import (
 	"github.com/sagernet/sing/common/json"
 )
 
+type FallBackRule struct {
+	MatchAll    bool             `json:"match_all,omitempty"`
+	IPCIDR      Listable[string] `json:"ipcidr,omitempty"`
+	GeoIP       Listable[string] `json:"geoip,omitempty"`
+	RuleSet     Listable[string] `json:"rule_set,omitempty"`
+	IPIsPrivate bool             `json:"ip_is_private,omitempty"`
+	Invert      bool             `json:"invert,omitempty"`
+	Server      string           `json:"server,omitempty"`
+}
+
+func (r FallBackRule) IsValid() bool {
+	var defaultValue DefaultDNSRule
+	defaultValue.Invert = r.Invert
+	defaultValue.Server = r.Server
+	return !reflect.DeepEqual(r, defaultValue)
+}
+
 type _DNSRule struct {
 	Type           string         `json:"type,omitempty"`
+	FallBackRules  []FallBackRule `json:"fallback_rules,omitempty"`
 	DefaultOptions DefaultDNSRule `json:"-"`
 	LogicalOptions LogicalDNSRule `json:"-"`
 }
@@ -54,11 +72,14 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 }
 
 func (r DNSRule) IsValid() bool {
+	if len(r.FallBackRules) > 0 && !common.All(r.FallBackRules, FallBackRule.IsValid) {
+		return false
+	}
 	switch r.Type {
 	case C.RuleTypeDefault:
-		return r.DefaultOptions.IsValid()
+		return r.DefaultOptions.IsValid() || len(r.FallBackRules) > 0
 	case C.RuleTypeLogical:
-		return r.LogicalOptions.IsValid()
+		return r.LogicalOptions.IsValid() || len(r.FallBackRules) > 0
 	default:
 		panic("unknown DNS rule type: " + r.Type)
 	}

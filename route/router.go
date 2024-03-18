@@ -126,7 +126,7 @@ func NewRouter(
 		dnsRuleByUUID:         make(map[string]adapter.DNSRule),
 		sniffOverrideRules:    make(map[string][]adapter.Rule),
 		ruleSetMap:            make(map[string]adapter.RuleSet),
-		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
+		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule) || hasDNSFallbackRuleUseGeoIP(dnsOptions.Rules),
 		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),

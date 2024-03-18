@@ -10,14 +10,64 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+type FallbackRule struct {
+	matchAll bool
+	items    []RuleItem
+	invert   bool
+	server   string
+}
+
+func (r *FallbackRule) String() string {
+	result := func() string {
+		if r.matchAll {
+			return "match_all"
+		}
+		result := strings.Join(F.MapToString(r.items), " ")
+		if r.invert {
+			return "!(" + result + ")"
+		}
+		if len(r.items) > 0 {
+			return "[" + result + "]"
+		}
+		return result
+	}()
+	if r.server != "" {
+		result = result + "=>" + r.server
+	}
+	return result
+}
+
+func (r *FallbackRule) Start() error {
+	for _, item := range r.items {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *FallbackRule) Match(metadata *adapter.InboundContext) bool {
+	if r.matchAll {
+		return true
+	}
+	for _, item := range r.items {
+		if item.Match(metadata) {
+			return !r.invert
+		}
+	}
+	return r.invert
+}
+
 type abstractRule struct {
-	disabled    bool
-	uuid        string
-	tag         string
-	invert      bool
-	ruleCount   int
-	outbound    string
-	skipResolve bool
+	disabled      bool
+	uuid          string
+	tag           string
+	invert        bool
+	ruleCount     int
+	outbound      string
+	skipResolve   bool
+	fallbackRules []FallbackRule
 }
 
 func (r *abstractRule) Disabled() bool {
@@ -34,6 +84,32 @@ func (r *abstractRule) ChangeStatus() {
 
 func (r *abstractRule) RuleCount() int {
 	return r.ruleCount
+}
+
+func (r *abstractRule) FallbackString() string {
+	if len(r.fallbackRules) == 0 {
+		return ""
+	}
+	if len(r.fallbackRules) == 1 {
+		return " fallback_rule=" + r.fallbackRules[0].String()
+	}
+	result := strings.Join(common.Map(r.fallbackRules, func(it FallbackRule) string {
+		return it.String()
+	}), " ")
+	return " fallback_rules=[" + result + "]"
+}
+
+func (r *abstractRule) MatchFallback(metadata *adapter.InboundContext, index int) (bool, string, string, int) {
+	fallbackRules := r.fallbackRules
+	if index != -1 {
+		fallbackRules = fallbackRules[index+1:]
+	}
+	for i, rule := range r.fallbackRules {
+		if rule.Match(metadata) {
+			return true, rule.server, rule.String(), i + index + 1
+		}
+	}
+	return false, "", "", -1
 }
 
 type abstractDefaultRule struct {
@@ -190,11 +266,17 @@ func (r *abstractDefaultRule) String() string {
 	if r.tag != "" {
 		return "rule[" + r.tag + "]"
 	}
-	if !r.invert {
-		return strings.Join(F.MapToString(r.allItems), " ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.allItems), " ") + ")"
-	}
+	result := func() string {
+		if len(r.allItems) == 0 {
+			return "match_all"
+		}
+		if !r.invert {
+			return strings.Join(F.MapToString(r.allItems), " ")
+		} else {
+			return "!(" + strings.Join(F.MapToString(r.allItems), " ") + ")"
+		}
+	}()
+	return result + r.FallbackString()
 }
 
 type abstractLogicalRule struct {
@@ -278,16 +360,19 @@ func (r *abstractLogicalRule) String() string {
 	if r.tag != "" {
 		return "rule[" + r.tag + "]"
 	}
-	var op string
-	switch r.mode {
-	case C.LogicalTypeAnd:
-		op = "&&"
-	case C.LogicalTypeOr:
-		op = "||"
-	}
-	if !r.invert {
-		return strings.Join(F.MapToString(r.rules), " "+op+" ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
-	}
+	result := func() string {
+		var op string
+		switch r.mode {
+		case C.LogicalTypeAnd:
+			op = "&&"
+		case C.LogicalTypeOr:
+			op = "||"
+		}
+		if !r.invert {
+			return strings.Join(F.MapToString(r.rules), " "+op+" ")
+		} else {
+			return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
+		}
+	}()
+	return result + r.FallbackString()
 }

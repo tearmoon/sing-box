@@ -12,16 +12,55 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
+func NewFallbackRules(router adapter.Router, logger log.ContextLogger, fbOptions []option.FallBackRule) ([]FallbackRule, error) {
+	var fallbackRules []FallbackRule
+	for i, options := range fbOptions {
+		if !options.IsValid() {
+			return nil, E.New("fallback_rule[", i, "] missing conditions")
+		}
+		rule := FallbackRule{
+			matchAll: options.MatchAll,
+			invert:   options.Invert,
+			server:   options.Server,
+		}
+		if len(options.IPCIDR) > 0 {
+			item, err := NewIPCIDRItem(false, options.IPCIDR)
+			if err != nil {
+				return nil, E.Cause(err, "ipcidr")
+			}
+			rule.items = append(rule.items, item)
+		}
+		if options.IPIsPrivate {
+			item := NewIPIsPrivateItem(false)
+			rule.items = append(rule.items, item)
+		}
+		if len(options.GeoIP) > 0 {
+			item := NewGeoIPItem(router, logger, false, options.GeoIP)
+			rule.items = append(rule.items, item)
+		}
+		if len(options.RuleSet) > 0 {
+			item := NewRuleSetItem(router, options.RuleSet, false)
+			rule.items = append(rule.items, item)
+		}
+		fallbackRules = append(fallbackRules, rule)
+	}
+	return fallbackRules, nil
+}
+
 func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
+	fallbackRules, err := NewFallbackRules(router, logger, options.FallBackRules)
+	if err != nil {
+		return nil, err
+	}
 	switch options.Type {
 	case "", C.RuleTypeDefault:
-		if !options.DefaultOptions.IsValid() {
+		if len(options.FallBackRules) == 0 && !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
 		if options.DefaultOptions.Server == "" && checkServer {
 			return nil, E.New("missing server field")
 		}
-		return NewDefaultDNSRule(router, logger, options.DefaultOptions)
+		return NewDefaultDNSRule(router, logger, options.DefaultOptions, fallbackRules)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
@@ -29,7 +68,7 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 		if options.LogicalOptions.Server == "" && checkServer {
 			return nil, E.New("missing server field")
 		}
-		return NewLogicalDNSRule(router, logger, options.LogicalOptions)
+		return NewLogicalDNSRule(router, logger, options.LogicalOptions, fallbackRules)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
@@ -44,14 +83,15 @@ type DefaultDNSRule struct {
 	clientSubnet *netip.Addr
 }
 
-func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule, fallbackRules []FallbackRule) (*DefaultDNSRule, error) {
 	id, _ := uuid.NewV4()
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				invert:   options.Invert,
-				outbound: options.Server,
+				uuid:          id.String(),
+				invert:        options.Invert,
+				outbound:      options.Server,
+				fallbackRules: fallbackRules,
 			},
 		},
 		disableCache: options.DisableCache,
@@ -281,14 +321,15 @@ type LogicalDNSRule struct {
 	clientSubnet *netip.Addr
 }
 
-func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule, fallbackRules []FallbackRule) (*LogicalDNSRule, error) {
 	id, _ := uuid.NewV4()
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				invert:   options.Invert,
-				outbound: options.Server,
+				uuid:          id.String(),
+				invert:        options.Invert,
+				outbound:      options.Server,
+				fallbackRules: fallbackRules,
 			},
 			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},

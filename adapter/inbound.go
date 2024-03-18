@@ -58,6 +58,7 @@ type InboundContext struct {
 	DestinationPortMatch         bool
 	DidMatch                     bool
 	IgnoreDestinationIPCIDRMatch bool
+	DnsFallBack                  bool
 }
 
 func (c *InboundContext) ResetRuleCache() {

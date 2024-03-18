@@ -122,6 +122,7 @@ icon: material/new-box
         "outbound": [
           "direct"
         ],
+        "fallback_rules": [],
         "server": "local",
         "disable_cache": false,
         "client_subnet": "127.0.0.1"
@@ -130,6 +131,7 @@ icon: material/new-box
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "fallback_rules": [],
         "server": "local",
         "disable_cache": false,
         "client_subnet": "127.0.0.1"
@@ -142,7 +144,7 @@ icon: material/new-box
 
 !!! note ""
 
-    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签，除了 `fallback_rules` 字段。
 
 ### 默认字段
 
@@ -156,6 +158,12 @@ icon: material/new-box
     `other fields`
 
     另外，引用的规则集可视为被合并，而不是作为一个单独的规则子项。
+
+### 回落字段
+
+| 键               | 格式                             |
+|------------------|---------------------------------|
+| `fallback_rules` | 一组 [回落规则](./fallback_rule/) |
 
 #### inbound
 
@@ -318,6 +326,10 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 匹配出站。
 
 `any` 可作为值用于匹配任意出站。
+
+### fallback_rules
+
+匹配回落规则。
 
 #### server
 

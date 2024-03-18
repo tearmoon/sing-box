@@ -4,6 +4,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -161,6 +162,18 @@ func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadles
 	return rule, nil
 }
 
+func (r *DefaultHeadlessRule) Match(metadata *adapter.InboundContext) bool {
+	if len(r.allItems) == 0 {
+		return true
+	}
+	if metadata.DnsFallBack {
+		return common.Any(r.destinationIPCIDRItems, func(it RuleItem) bool {
+			return it.Match(metadata)
+		})
+	}
+	return r.abstractDefaultRule.Match(metadata)
+}
+
 var _ adapter.HeadlessRule = (*LogicalHeadlessRule)(nil)
 
 type LogicalHeadlessRule struct {
@@ -200,4 +213,11 @@ func NewLogicalHeadlessRule(router adapter.Router, options option.LogicalHeadles
 		r.ruleCount = count
 	}
 	return r, nil
+}
+
+func (r *LogicalHeadlessRule) Match(metadata *adapter.InboundContext) bool {
+	if metadata.DnsFallBack {
+		return false
+	}
+	return r.abstractLogicalRule.Match(metadata)
 }

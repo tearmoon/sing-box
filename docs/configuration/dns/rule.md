@@ -122,6 +122,7 @@ icon: material/new-box
         "outbound": [
           "direct"
         ],
+        "fallback_rules": [],
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100,
@@ -131,6 +132,7 @@ icon: material/new-box
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "fallback_rules": [],
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100,
@@ -144,7 +146,7 @@ icon: material/new-box
 
 !!! note ""
 
-    You can ignore the JSON Array [] tag when the content is only one item
+    You can ignore the JSON Array [] tag when the content is only one item, except `fallback_rules` field.
 
 ### Default Fields
 
@@ -158,6 +160,12 @@ icon: material/new-box
     `other fields`
 
     Additionally, included rule sets can be considered merged rather than as a single rule sub-item.
+
+### Fallback Fields
+
+| Key              | Format                                    |
+|------------------|-------------------------------------------|
+| `fallback_rules` | List of [Fallback Rule](./fallback_rule/) |
 
 #### inbound
 
@@ -320,6 +328,12 @@ Invert match result.
 Match outbound.
 
 `any` can be used as a value to match any outbound.
+
+### fallback_rules
+
+Fallback when any rule matched.
+
+Server will be used to afford response if set.
 
 #### server
 
