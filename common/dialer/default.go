@@ -126,37 +126,127 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 	}, nil
 }
 
+type TCPConn struct {
+	conn net.Conn
+	err  error
+}
+
+func GetTCPConn(connChan chan TCPConn) TCPConn {
+	var tcpConn TCPConn
+	for i := 0; i < 3; i++ {
+		tcpConn = <-connChan
+		if tcpConn.err != nil {
+			continue
+		}
+		go func(index int) {
+			for i := index; i < 3; i++ {
+				tcpConn := <-connChan
+				if tcpConn.err != nil {
+					continue
+				}
+				tcpConn.conn.Close()
+			}
+		}(i + 1)
+		break
+	}
+	return tcpConn
+}
+
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
 	if !address.IsValid() {
 		return nil, E.New("invalid address")
 	}
-	switch N.NetworkName(network) {
-	case N.NetworkUDP:
-		if !address.IsIPv6() {
-			return trackConn(d.udpDialer4.DialContext(ctx, network, address.String()))
-		} else {
-			return trackConn(d.udpDialer6.DialContext(ctx, network, address.String()))
+	connChan := make(chan TCPConn, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			var tcpConn TCPConn
+			for i := 0; i < 4; i++ {
+				if tcpConn.conn, tcpConn.err = func() (net.Conn, error) {
+					if N.NetworkName(network) == N.NetworkUDP {
+						if !address.IsIPv6() {
+							return d.udpDialer4.DialContext(ctx, network, address.String())
+						}
+						return d.udpDialer6.DialContext(ctx, network, address.String())
+					} else if !address.IsIPv6() {
+						return DialSlowContext(&d.dialer4, ctx, network, address)
+					}
+					return DialSlowContext(&d.dialer6, ctx, network, address)
+				}(); tcpConn.err == nil {
+					break
+				}
+			}
+			connChan <- tcpConn
+		}()
+	}
+	tcpConn := GetTCPConn(connChan)
+	return trackConn(tcpConn.conn, tcpConn.err)
+}
+
+type UDPConn struct {
+	conn net.PacketConn
+	err  error
+}
+
+func GetUDPConn(connChan chan UDPConn) UDPConn {
+	var udpConn UDPConn
+	for i := 0; i < 3; i++ {
+		udpConn = <-connChan
+		if udpConn.err != nil {
+			continue
 		}
+		go func(index int) {
+			for i := index; i < 3; i++ {
+				udpConn := <-connChan
+				if udpConn.err != nil {
+					continue
+				}
+				udpConn.conn.Close()
+			}
+		}(i + 1)
+		break
 	}
-	if !address.IsIPv6() {
-		return trackConn(DialSlowContext(&d.dialer4, ctx, network, address))
-	} else {
-		return trackConn(DialSlowContext(&d.dialer6, ctx, network, address))
-	}
+	return udpConn
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	if destination.IsIPv6() {
-		return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6))
-	} else if destination.IsIPv4() && !destination.Addr.IsUnspecified() {
-		return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP+"4", d.udpAddr4))
-	} else {
-		return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4))
+	connChan := make(chan UDPConn, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			var udpConn UDPConn
+			for i := 0; i < 4; i++ {
+				if udpConn.conn, udpConn.err = func() (net.PacketConn, error) {
+					if destination.IsIPv6() {
+						return d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6)
+					} else if destination.IsIPv4() && !destination.Addr.IsUnspecified() {
+						return d.udpListener.ListenPacket(ctx, N.NetworkUDP+"4", d.udpAddr4)
+					}
+					return d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4)
+				}(); udpConn.err == nil {
+					break
+				}
+			}
+			connChan <- udpConn
+		}()
 	}
+	udpConn := GetUDPConn(connChan)
+	return trackPacketConn(udpConn.conn, udpConn.err)
 }
 
 func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
-	return trackPacketConn(d.udpListener.ListenPacket(context.Background(), network, address))
+	connChan := make(chan UDPConn, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			var udpConn UDPConn
+			for i := 0; i < 4; i++ {
+				if udpConn.conn, udpConn.err = d.udpListener.ListenPacket(context.Background(), network, address); udpConn.err == nil {
+					break
+				}
+			}
+			connChan <- udpConn
+		}()
+	}
+	udpConn := GetUDPConn(connChan)
+	return trackPacketConn(udpConn.conn, udpConn.err)
 }
 
 func trackConn(conn net.Conn, err error) (net.Conn, error) {
