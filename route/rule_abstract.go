@@ -14,7 +14,7 @@ type FallbackRule struct {
 	matchAll bool
 	items    []RuleItem
 	invert   bool
-	server   string
+	server   []string
 }
 
 func (r *FallbackRule) String() string {
@@ -31,10 +31,13 @@ func (r *FallbackRule) String() string {
 		}
 		return result
 	}()
-	if r.server != "" {
-		result = result + "=>" + r.server
+	if len(r.server) == 0 {
+		return result
 	}
-	return result
+	if len(r.server) == 1 {
+		return result + "=>" + r.server[0]
+	}
+	return result + "=>" + strings.Join(r.server, " ")
 }
 
 func (r *FallbackRule) Start() error {
@@ -99,17 +102,21 @@ func (r *abstractRule) FallbackString() string {
 	return " fallback_rules=[" + result + "]"
 }
 
-func (r *abstractRule) MatchFallback(metadata *adapter.InboundContext, index int) (bool, string, string, int) {
+func (r *abstractRule) MatchFallback(metadata *adapter.InboundContext, index int) (bool, []string, string, int) {
 	fallbackRules := r.fallbackRules
 	if index != -1 {
 		fallbackRules = fallbackRules[index+1:]
 	}
-	for i, rule := range r.fallbackRules {
+	for i, rule := range fallbackRules {
 		if rule.Match(metadata) {
-			return true, rule.server, rule.String(), i + index + 1
+			nextIndex := i
+			if index != -1 {
+				nextIndex += index + 1
+			}
+			return true, rule.server, rule.String(), nextIndex
 		}
 	}
-	return false, "", "", -1
+	return false, nil, "", -1
 }
 
 type abstractDefaultRule struct {

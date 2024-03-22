@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/geoip"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
@@ -24,6 +24,8 @@ type Router interface {
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
 	DefaultOutbound(network string) (Outbound, error)
+
+	Transport(tag string) (dns.Transport, bool)
 
 	FakeIPStore() FakeIPStore
 
@@ -56,7 +58,7 @@ type Router interface {
 	Rule(uuid string) (Rule, bool)
 	DNSRules() []DNSRule
 	DNSRule(uuid string) (DNSRule, bool)
-	DefaultDNSServer() string
+	DefaultDNSServers() []string
 
 	ClashServer() ClashServer
 	SetClashServer(server ClashServer)
@@ -96,12 +98,13 @@ type Rule interface {
 
 type DNSRule interface {
 	Rule
-	MatchFallback(metadata *InboundContext, index int) (bool, string, string, int)
+	MatchFallback(metadata *InboundContext, index int) (bool, []string, string, int)
 	DisableCache() bool
 	RewriteTTL() *uint32
 	ClientSubnet() *netip.Addr
 	WithAddressLimit() bool
 	MatchAddressLimit(metadata *InboundContext) bool
+	Servers() []string
 }
 
 type RuleSet interface {

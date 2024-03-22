@@ -8,6 +8,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -57,7 +58,7 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 		if len(options.FallBackRules) == 0 && !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.DefaultOptions.Server == "" && checkServer {
+		if len(options.DefaultOptions.Server) == 0 && checkServer {
 			return nil, E.New("missing server field")
 		}
 		return NewDefaultDNSRule(router, logger, options.DefaultOptions, fallbackRules)
@@ -65,7 +66,7 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.LogicalOptions.Server == "" && checkServer {
+		if len(options.LogicalOptions.Server) == 0 && checkServer {
 			return nil, E.New("missing server field")
 		}
 		return NewLogicalDNSRule(router, logger, options.LogicalOptions, fallbackRules)
@@ -78,8 +79,10 @@ var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
 	abstractDefaultRule
+	router       adapter.Router
 	disableCache bool
 	rewriteTTL   *uint32
+	servers      []string
 	clientSubnet *netip.Addr
 }
 
@@ -90,12 +93,13 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 			abstractRule: abstractRule{
 				uuid:          id.String(),
 				invert:        options.Invert,
-				outbound:      options.Server,
 				fallbackRules: fallbackRules,
 			},
 		},
+		router:       router,
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
+		servers:      options.Server,
 		clientSubnet: (*netip.Addr)(options.ClientSubnet),
 	}
 	if len(options.Inbound) > 0 {
@@ -312,12 +316,54 @@ func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) boo
 	return r.abstractDefaultRule.Match(metadata)
 }
 
+func (r *DefaultDNSRule) Servers() []string {
+	return r.servers
+}
+
+func (r *DefaultDNSRule) Start() error {
+	for _, item := range r.allItems {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	for _, server := range r.servers {
+		transport, loaded := r.router.Transport(server)
+		if !loaded {
+			return E.New("transport not found: ", server)
+		}
+		if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && len(r.servers) > 1 {
+			return E.New("fakeip can only be used stand-alone")
+		}
+		if _, isRCode := transport.(*dns.RCodeTransport); isRCode && len(r.servers) > 1 {
+			return E.New("rcode server can only be used stand-alone")
+		}
+	}
+	for _, rule := range r.fallbackRules {
+		for _, server := range rule.server {
+			transport, loaded := r.router.Transport(server)
+			if !loaded {
+				return E.New("transport not found: ", server)
+			}
+			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && len(r.servers) > 1 {
+				return E.New("fakeip can only be used stand-alone")
+			}
+			if _, isRCode := transport.(*dns.RCodeTransport); isRCode && len(r.servers) > 1 {
+				return E.New("rcode server can only be used stand-alone")
+			}
+		}
+	}
+	return nil
+}
+
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
 	abstractLogicalRule
+	router       adapter.Router
 	disableCache bool
 	rewriteTTL   *uint32
+	servers      []string
 	clientSubnet *netip.Addr
 }
 
@@ -328,13 +374,14 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 			abstractRule: abstractRule{
 				uuid:          id.String(),
 				invert:        options.Invert,
-				outbound:      options.Server,
 				fallbackRules: fallbackRules,
 			},
 			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},
+		router:       router,
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
+		servers:      options.Server,
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -408,4 +455,47 @@ func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) boo
 			return it.(adapter.DNSRule).MatchAddressLimit(metadata)
 		}) != r.invert
 	}
+}
+
+func (r *LogicalDNSRule) Servers() []string {
+	return r.servers
+}
+
+func (r *LogicalDNSRule) Start() error {
+	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (common.Starter, bool) {
+		rule, loaded := it.(common.Starter)
+		return rule, loaded
+	}) {
+		err := rule.Start()
+		if err != nil {
+			return err
+		}
+	}
+	for _, server := range r.servers {
+		transport, loaded := r.router.Transport(server)
+		if !loaded {
+			return E.New("transport not found: ", server)
+		}
+		if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && len(r.servers) > 1 {
+			return E.New("fakeip can only be used stand-alone")
+		}
+		if _, isRCode := transport.(*dns.RCodeTransport); isRCode && len(r.servers) > 1 {
+			return E.New("rcode server can only be used stand-alone")
+		}
+	}
+	for _, rule := range r.fallbackRules {
+		for _, server := range rule.server {
+			transport, loaded := r.router.Transport(server)
+			if !loaded {
+				return E.New("transport not found: ", server)
+			}
+			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && len(r.servers) > 1 {
+				return E.New("fakeip can only be used stand-alone")
+			}
+			if _, isRCode := transport.(*dns.RCodeTransport); isRCode && len(r.servers) > 1 {
+				return E.New("rcode server can only be used stand-alone")
+			}
+		}
+	}
+	return nil
 }
