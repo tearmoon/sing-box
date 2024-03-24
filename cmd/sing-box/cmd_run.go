@@ -16,9 +16,11 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	"gopkg.in/yaml.v3"
 
 	"github.com/spf13/cobra"
 )
@@ -44,6 +46,28 @@ type OptionsEntry struct {
 	options option.Options
 }
 
+func preFilter(content []byte) []byte {
+	arr := common.Filter(strings.Split(string(content), "\n"), func(it string) bool {
+		return !strings.HasPrefix(strings.TrimSpace(it), "//")
+	})
+	return []byte(strings.Join(arr, "\n"))
+}
+
+func convertYamlToJSON(content []byte) ([]byte, error) {
+	var mapRaw map[string]any
+	if err := yaml.Unmarshal(preFilter(content), &mapRaw); err != nil {
+		return nil, err
+	}
+	mapClear := make(map[string]any)
+	for _, key := range []string{"$schema", "log", "dns", "ntp", "inbounds", "outbounds", "route", "outbound_providers", "experimental"} {
+		if value, ok := mapRaw[key]; ok {
+			mapClear[key] = value
+		}
+	}
+
+	return json.Marshal(&mapClear)
+}
+
 func readConfigAt(path string) (*OptionsEntry, error) {
 	var (
 		configContent []byte
@@ -57,7 +81,11 @@ func readConfigAt(path string) (*OptionsEntry, error) {
 	if err != nil {
 		return nil, E.Cause(err, "read config at ", path)
 	}
-	options, err := json.UnmarshalExtended[option.Options](configContent)
+	content, err := convertYamlToJSON(configContent)
+	if err != nil {
+		return nil, E.Cause(err, "decode config at ", path)
+	}
+	options, err := json.UnmarshalExtended[option.Options](content)
 	if err != nil {
 		return nil, E.Cause(err, "decode config at ", path)
 	}
