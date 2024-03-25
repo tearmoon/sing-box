@@ -93,6 +93,10 @@ github.com/pierrec/lz4/v4 v4.1.14 h1:+fL8AQEZtz/ijeNnpduH0bROTu0O3NZAlPjQxGn8LwE
 github.com/pierrec/lz4/v4 v4.1.14/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/puernya/sing v0.0.0-20240325012926-0b74a9778d15 h1:yChzC6roFNDRlfTT5s/oCGj3QJkiQDDLBPjB1xFJUZo=
+github.com/puernya/sing v0.0.0-20240325012926-0b74a9778d15/go.mod h1:+60H3Cm91RnL9dpVGWDPHt0zTQImO9Vfqt9a4rSambI=
+github.com/puernya/sing-dns v0.0.0-20240324200358-d511357473ab h1:8TKWLHrsX694Wi+055slwKxF9YwFrKkYjC3i2h70PeU=
+github.com/puernya/sing-dns v0.0.0-20240324200358-d511357473ab/go.mod h1:XU6Vqr6aHcMz/34Fcv8jmXpRCEuShzW+B7Qg1Xe1nxY=
 github.com/quic-go/qpack v0.4.0 h1:Cr9BXA1sQS2SmDUWjSofMPNKmvF6IiIfDRmgU0w1ZCo=
 github.com/quic-go/qpack v0.4.0/go.mod h1:UZVnYIfi5GRk+zI9UMaCPsmZ2xKJP7XBUvVyT1Knj9A=
 github.com/quic-go/qtls-go1-20 v0.4.1 h1:D33340mCNDAIKBqXuAvexTNMUByrYmFYVfKfDN5nfFs=
@@ -113,10 +117,6 @@ github.com/sagernet/quic-go v0.42.0-beta.2/go.mod h1:lf8OYop+fMxIlrfM/ZHpENt/7ZD
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.2.18/go.mod h1:OL6k2F0vHmEzXz2KW19qQzu172FDgSbUSODylighuVo=
-github.com/sagernet/sing v0.4.0-beta.5 h1:2RXOU+Hrb5gEOFA+S6Ji+7egLoWj6QMAFpbO1SQ3XTM=
-github.com/sagernet/sing v0.4.0-beta.5/go.mod h1:+60H3Cm91RnL9dpVGWDPHt0zTQImO9Vfqt9a4rSambI=
-github.com/sagernet/sing-dns v0.2.0-beta.16 h1:bzd4B8eHD7/WO3HrYknvgE8A56/R3n5oXBjNF97iPzQ=
-github.com/sagernet/sing-dns v0.2.0-beta.16/go.mod h1:XU6Vqr6aHcMz/34Fcv8jmXpRCEuShzW+B7Qg1Xe1nxY=
 github.com/sagernet/sing-mux v0.2.0 h1:4C+vd8HztJCWNYfufvgL49xaOoOHXty2+EAjnzN3IYo=
 github.com/sagernet/sing-mux v0.2.0/go.mod h1:khzr9AOPocLa+g53dBplwNDz4gdsyx/YM3swtAhlkHQ=
 github.com/sagernet/sing-quic v0.1.9-beta.3 h1:turuRtN6xfAxWMseZEzwNOA6EO2ZAW82BrfPJUrtN3Q=
